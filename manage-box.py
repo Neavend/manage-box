@@ -27,13 +27,18 @@ class ManageBox:
 	credentials = settings['credentials']
 	browser = RoboBrowser(history=True, parser="lxml")
 
-	def __init__(self, force):		
+	def __init__(self, force):
+		try:
+			self.browser.open('http://192.168.0.1/', timeout=3)
+		except:
+			return print("Unable to load configuration page.")
+
 		if not force:
 			try:
 				self.browser.open(settings['server'], timeout=3)
-				print("Server seems to be working, no DMZ change needed")
-				return
-			except: pass
+				return print("Server seems to be working, no DMZ change needed")
+			except:
+				pass
 
 		self.login()
 		self.hostname = socket.gethostname()
