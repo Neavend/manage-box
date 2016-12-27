@@ -46,12 +46,12 @@ class ManageBox:
 		interface = settings['interface']
 		self.mac = self.getHwAddr(interface)
 		self.ip = self.get_local_ip(self.mac)
-		if (self.ip is None):
+		if self.ip is None and settings.get('backup_interface'):
 			interface = settings['backup_interface']
 			self.mac = self.getHwAddr(interface)
 			self.ip = self.get_local_ip(self.mac)
-			if (self.ip is None):
-				raise Exception("Unable to find the IP for your {} interface [MAC: {}]".format(interface, self.mac))
+			if self.ip is None:
+				raise Exception("Unable to find the IP for your any of the interfaces")
 		print("Your local IP is {}, setting DMZ to this adress...".format(self.ip))
 		self.set_dmz(self.ip)
 		print("Done.")
@@ -59,8 +59,8 @@ class ManageBox:
 	def login(self):
 		self.browser.open('http://192.168.0.1/config.html')
 		form = self.browser.get_form(action='/goform/login')
-		if (form is None):
-			if ("YOUR GATEWAY" in str(self.browser.select)):
+		if form is None:
+			if "YOUR GATEWAY" in str(self.browser.select):
 				return print('Already authentified as ' + self.credentials['login'])
 			raise Exception("Authentication failed")
 		form['loginUsername'] = self.credentials['login']
@@ -76,7 +76,9 @@ class ManageBox:
 		struc = struct.pack('256s', ifname[:15].encode('utf-8'))
 		info = fcntl.ioctl(s.fileno(), 0x8927, struc)
 		int_mac = str(binascii.hexlify(info)[36:48], 'utf-8')
-		return ":".join([int_mac[i:i+2] for i in range(0, len(int_mac), 2)])
+		mac = ":".join([int_mac[i:i+2] for i in range(0, len(int_mac), 2)])
+		print("MAC for {}: {}".format(ifname, mac))
+		return mac
 
 	def get_local_ip(self, mac):
 		self.browser.open('http://192.168.0.1/reseau-pb6-moniteur.html')
@@ -84,13 +86,13 @@ class ManageBox:
 		divs = soup.findAll("div", {"id": lambda L: L and L.startswith('apDiv') and 'mac'in L})
 		for div in divs:
 			addrs = div.getText().split('\n')
-			if (addrs[1] == mac):
+			if addrs[1] == mac:
 				return addrs[2]
 
 	def set_dmz(self, ip):
 		self.browser.open('http://192.168.0.1/reseau-pa7-DMZ.html')
 		form = self.browser.get_form(action='/goform/WebUiRgDmz')
-		if (form is None):
+		if form is None:
 			raise Exception("Unable to get DMZ form")
 		form['RgDmzAddr03'] = ip[-2:]
 		self.browser.submit_form(form)
